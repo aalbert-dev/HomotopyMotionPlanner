@@ -10,13 +10,14 @@ class Agent {
         Agent();
 
         // Constructor with initial values
-        Agent(Pose pose, float velocity, float width, float length);
+        Agent(Pose pose, float velocity, float width, float length, std::string name);
 
         // Getter functions
         Pose getPose() const { return pose_; }
         float getVeloity() const { return velocity_; }
         float getWidth() const { return width_; }
         float getLength() const { return length_; }
+        std::string name_;
 
     private:
         Pose pose_;

@@ -5,6 +5,7 @@
 #include <math.h>
 #include "Agent.h"
 #include "Viz.cpp"
+#include "Trajectory.h"
 
 void updateKinematics(Vehicle& car, float dt, float steering_angle, float throttle){
     
@@ -45,12 +46,12 @@ void updateKinematics(Vehicle& car, float dt, float steering_angle, float thrott
 }
 
 int main(int argc, char **argv){
-    Agent test_agent1(Pose(0, 0, M_PI/4), 2.0, 2.0, 4.0);
-    Agent test_agent2(Pose(-5, 1, M_PI/4), 2.0, 2.0, 4.0);
-    Vehicle ego_vehicle;
+    Agent test_agent1(Pose(0, 0, -1 * M_PI / 2), 2.0, 2.0, 4.0, "Agent 0");
+    //Agent test_agent2(Pose(-5, 1, M_PI/4), 2.0, 2.0, 4.0);
+    Vehicle ego_vehicle(Pose(-10, 0, -1 * M_PI / 2), 2.0, 2.0, 4.0, "Ego", 10.0, 0.0);
     std::vector<Agent> agents;
     agents.push_back(test_agent1);
-    agents.push_back(test_agent2);
+    //agents.push_back(test_agent2);
     plot_env(agents, ego_vehicle);
     return 0;
 }
