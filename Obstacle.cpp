@@ -1,4 +1,4 @@
 #include "Obstacle.h"
 #include <vector>
 
-Obstacle::Obstacle(std::vector<float> points_x, std::vector<float> points_y, std::string name) : points_x_(points_x), points_y_(points_y), name_(name) {}
+Obstacle::Obstacle(Pose pose, float width, float length, std::string name) : pose_(pose), width_(width), length_(length), name_(name){}

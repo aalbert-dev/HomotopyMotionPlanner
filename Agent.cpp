@@ -1,6 +1,6 @@
 #include "Agent.h"
 
-#include <sstream> // for stringstream
+#include <sstream>
 
 Agent::Agent() : pose_(Pose()), velocity_(0.0), width_(2.0), length_(4.0), name_(""){}
 

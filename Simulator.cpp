@@ -4,7 +4,8 @@
 #include <iostream>
 #include <math.h>
 #include "Agent.h"
-#include "Viz.cpp"
+#include "Node.h"
+#include "Viz.h"
 #include "Trajectory.h"
 
 void updateKinematics(Vehicle& car, float dt, float steering_angle, float throttle){
@@ -46,12 +47,20 @@ void updateKinematics(Vehicle& car, float dt, float steering_angle, float thrott
 }
 
 int main(int argc, char **argv){
-    Agent test_agent1(Pose(0, 0, -1 * M_PI / 2), 2.0, 2.0, 4.0, "Agent 0");
-    //Agent test_agent2(Pose(-5, 1, M_PI/4), 2.0, 2.0, 4.0);
-    Vehicle ego_vehicle(Pose(-10, 0, -1 * M_PI / 2), 2.0, 2.0, 4.0, "Ego", 10.0, 0.0);
-    std::vector<Agent> agents;
-    agents.push_back(test_agent1);
-    //agents.push_back(test_agent2);
-    plot_env(agents, ego_vehicle);
+    // Define bounding boxes for agents and obstacles
+    Agent agent1(Pose(0, 0, 0), 0.0, 2.0, 4.0, "Agent 0");
+    Vehicle ego_vehicle(Pose(-10, 0, 0), 2.0, 2.0, 4.0, "Ego", 10.0, 0.0);
+    Obstacle ob1(Pose(1, 5, 0), 8, 2, "Obstacle 1");
+
+    // Add objects to enviornment
+    std::vector<Obstacle> obstacles = {ob1};
+    std::vector<Agent> agents = {agent1};
+
+    // Plot enviornment 
+    Trajectory trajResult = ego_vehicle.calculateTrajectory(agents, obstacles);
+    std::vector<Node> nodeGraph = ego_vehicle.calculateNodeGraph(agents, obstacles);
+    plot_env(agents, obstacles, ego_vehicle, nodeGraph, trajResult);
+
+
     return 0;
 }

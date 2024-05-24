@@ -1,6 +1,7 @@
 #include <vector>
 #include "Pose.h"
-
+#ifndef TRAJ_H
+#define TRAJ_H
 class Trajectory {
     public:
         Trajectory();
@@ -12,3 +13,5 @@ class Trajectory {
     private:
         std::vector<Pose> poses_;
 };
+
+#endif

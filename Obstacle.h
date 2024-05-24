@@ -1,21 +1,24 @@
 #include <vector>
 #include <sstream>
+#include "Pose.h"
 
 #ifndef OBST_H
 #define OBST_H
 class Obstacle {
     public:
 
-        Obstacle(std::vector<float> points_x, std::vector<float> points_y, std::string name);
+        Obstacle(Pose p, float width, float length, std::string name);
 
-        std::vector<float> getPointsX() const { return points_x_; }
-        std::vector<float> getPointsY() const { return points_y_; }
+        Pose getPose() const { return pose_; }
+        float getWidth() const { return width_; }
+        float getLength() const { return length_; }
 
         std::string name_;
 
     private:
-        std::vector<float> points_x_;
-        std::vector<float> points_y_;
+        Pose pose_;
+        float width_;
+        float length_;
 };
 
 #endif
