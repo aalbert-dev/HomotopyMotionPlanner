@@ -180,12 +180,26 @@ void plot_pose(Pose p){
     float heading = p.getHeading();
 }
 
+void plot_node(Node node){
+    if (node.getDistance() > 0){
+        Node* prev = node.prev_;
+        float x1 = node.getPose().getX();
+        float y1 = node.getPose().getY();
+        float x2 = prev->getPose().getX();
+        float y2 = prev->getPose().getY();
+        std::vector<float> points_x = {x1, x2};
+        std::vector<float> points_y = {y1, y2};
+        plt::plot(points_x, points_y);
+    }
+}
+
 void plot_nodes(std::vector<Node> nodes){
     std::vector<float> node_x;
     std::vector<float> node_y;
     for (int i = 0; i < nodes.size(); i++){
         node_x.push_back(nodes[i].getPose().getX());
         node_y.push_back(nodes[i].getPose().getY());
+        //plot_node(nodes[i]);
     }
     plt::scatter(node_x, node_y, 5.0);
 }
@@ -198,7 +212,7 @@ void plot_env(std::vector<Agent> agents, std::vector<Obstacle> obstacles, Vehicl
     plot_agent(vehicle);
     plot_goal(vehicle);
     plot_obstacles(obstacles);
-    plot_traj(trajResult);
+    //plot_traj(trajResult);
     plot_nodes(nodeGraph);
     plt::save("./basic.png");
 }

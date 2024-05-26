@@ -23,6 +23,10 @@ float distance(Pose p1, Pose p2){
     return pow(pow(p1.getX() - p2.getX(), 2) + pow(p1.getY() - p2.getY(), 2), 0.5);
 }
 
+float distance(Node n1, Node n2){
+   return distance(n1.getPose(), n2.getPose());
+}
+
 bool Vehicle::isGoal(Pose currentPose){
     Pose goalPose(getGoalX(), getGoalY(), 0.0);
     return distance(currentPose, goalPose) < 1;
@@ -34,18 +38,18 @@ bool compare(Node n1, Node n2){
 
 bool checkCollision(Agent ego, Obstacle obstacle){
     // Returns true if there is a collision
-    return (ego.getPose().getX() < obstacle.getPose().getX() + obstacle.getWidth() &&
-          ego.getPose().getX() + ego.getWidth() > obstacle.getPose().getX() &&
-          ego.getPose().getY() < obstacle.getPose().getY() + obstacle.getLength() &&
-          ego.getPose().getY() + ego.getLength() > obstacle.getPose().getY());
+    return (ego.getPose().getX() < obstacle.getPose().getX() + obstacle.getLength() &&
+          ego.getPose().getX() + ego.getLength() > obstacle.getPose().getX() &&
+          ego.getPose().getY() < obstacle.getPose().getY() + obstacle.getWidth() &&
+          ego.getPose().getY() + ego.getWidth() > obstacle.getPose().getY());
 }
 
 bool checkCollision(Agent agent1, Agent agent2){
     // Returns true if there is a collision
-    return (agent1.getPose().getX() < agent2.getPose().getX() + agent2.getWidth() &&
-          agent1.getPose().getX() + agent1.getWidth() > agent2.getPose().getX() &&
-          agent1.getPose().getY() < agent2.getPose().getY() + agent2.getLength() &&
-          agent1.getPose().getY() + agent1.getLength() > agent2.getPose().getY());
+    return (agent1.getPose().getX() < agent2.getPose().getX() + agent2.getLength() &&
+          agent1.getPose().getX() + agent1.getLength() > agent2.getPose().getX() &&
+          agent1.getPose().getY() < agent2.getPose().getY() + agent2.getWidth() &&
+          agent1.getPose().getY() + agent1.getWidth() > agent2.getPose().getY());
 }
 
 bool checkCollisions(Agent ego, std::vector<Agent> otherAgents){
@@ -112,12 +116,62 @@ std::vector<Agent> projectAgents(std::vector<Agent> otherAgents, float time){
     return predictedAgents;
 }
 
+Pose pickRandomPose(Pose startPose, float maxTurnAngle, float maxVelocity, float dt){
+    std::uniform_real_distribution<double> angleDist(-1 * maxTurnAngle, maxTurnAngle); 
+    std::uniform_real_distribution<double> velocityDist(0, maxVelocity); 
+    float randomAngle = startPose.getHeading() + angleDist(rng);
+    float randomVelocity = velocityDist(rng);
+    float startX = startPose.getX();
+    float startY = startPose.getY();
+    return Pose(startX + cos(randomAngle) * randomVelocity * dt, startY + sin(randomAngle) * randomVelocity * dt, randomAngle);
+}
+
+Node pickRandomNode(std::vector<Node> nodeList){
+    std::uniform_int_distribution<int> nodeDist(0, nodeList.size() - 1);
+    return nodeList[nodeDist(rng)];
+}
+
+// float calculateCost(Node pickedNode){
+//     float total_cost = 0;
+//     Node* newNode = currentNode.prev_;
+//     while (newNode->prev_){
+//         poseList.push_back(newNode->getPose());
+//         newNode = newNode->prev_;
+//         std::cout << "Next node in traj" << std::endl;
+//     }
+// }
+
+Node findLowestCostNeighbor(std::vector<Node> nodeList, Node pickedNode, Node originalNode, float radius){
+    float lowestCost = originalNode.getDistance() + distance(pickedNode, originalNode);
+    Node lowestCostNode = originalNode;
+    for (int i = 0; i < nodeList.size(); i++){
+        float newDistance = distance(nodeList[i], pickedNode);
+        if (newDistance < radius){
+            float newCost = nodeList[i].getDistance() + newDistance;
+            if (newCost < lowestCost){
+                lowestCost = newCost;
+                lowestCostNode = nodeList[i];
+            }
+        }
+    }
+    return lowestCostNode;
+}
+
+Node Vehicle::generateGoalNode(){
+    Pose goalPose(getGoalX(), getGoalY(), 0.0);
+    return Node(goalPose, 0, 0);
+}
+
 float Vehicle::getPoseDistance(Pose p){
     return pow(pow(p.getX() - getGoalX(), 2) + pow(p.getY() - getGoalY(), 2), 0.5);
 }
 
+float Vehicle::getEgoPoseDistance(Pose p){
+    return pow(pow(p.getX() - getPose().getX(), 2) + pow(p.getY() - getPose().getY(), 2), 0.5);
+}
+
 float noise(){
-    std::uniform_real_distribution<double> dist(0.0, 1.0); 
+    std::uniform_real_distribution<double> dist(0.0, 5.0); 
     return dist(rng); 
 }
 
@@ -127,8 +181,6 @@ bool pickRandom(){
 }
 
 int pickRandomIndex(int maxIndex){
-    // std::uniform_int_distribution<int> dist(0, maxIndex/2); 
-    // return dist(rng);
     return maxIndex / 2;
 }
 
@@ -222,9 +274,11 @@ std::vector<Node> Vehicle::calculateNodeGraph2(std::vector<Agent> agents, std::v
     // Create tree from graph space
     // Initialize RRT default values
     int currentTreeIter = 0;
-    int maxTreeSize = 1000;
-    float dt = 0.2;
-    float velocity = 2.5; 
+    int maxTreeSize = 10000;
+    float dt = 1;
+    float min_velocity = 1; 
+    float max_velocity = 5;
+    float velocity_increment = 1;
     float maxTurnAngle = M_PI / 4;
     float minTurnAngle = M_PI / 32;
 
@@ -259,32 +313,39 @@ std::vector<Node> Vehicle::calculateNodeGraph2(std::vector<Agent> agents, std::v
         // Calculate all possible moves (turning angles)
         float currentAngle = currentPose.getHeading();
         freeNodes = false;
-        for (float nextAngle = currentAngle - maxTurnAngle; nextAngle <= maxTurnAngle + currentAngle; nextAngle += minTurnAngle){
 
-            // Project ego and agent into corresponding future time
-            Pose potentialNextPose = getNextPose(currentPose, nextAngle, dt * velocity);
-            float totalTime = currentNode.getTime() + dt;
-            std::vector<Agent> predictedAgents = projectAgents(agents, totalTime);
-            Agent futureEgo = projectEgo(potentialNextPose);
+        // Iterate through velocities
+        for (float nextVelocity = min_velocity; nextVelocity <= max_velocity; nextVelocity += velocity_increment){
+            
+            // Iterate through angles
+            for (float nextAngle = currentAngle - maxTurnAngle; nextAngle <= maxTurnAngle + currentAngle; nextAngle += minTurnAngle){
 
-            // Check for collisions
-            bool futureCollision = checkCollisions(futureEgo, predictedAgents, obstacles);
-            if (!futureCollision){
+                // Project ego and agent into corresponding future time
+                Pose potentialNextPose = getNextPose(currentPose, nextAngle, dt * nextVelocity);
+                float totalTime = currentNode.getTime() + dt;
+                std::vector<Agent> predictedAgents = projectAgents(agents, totalTime);
+                Agent futureEgo = projectEgo(potentialNextPose);
 
-                // Add node to heap if there aren't any collisions
-                float nextNodeDistance = getPoseDistance(potentialNextPose);
-                //std::cout << "NEW DISTANCE: " << nextNodeDistance << std::endl;
+                // Check for collisions
+                bool futureCollision = checkCollisions(futureEgo, predictedAgents, obstacles);
+                if (!futureCollision){
 
-                // Set neighbors + previous 
-                Node nextNode(potentialNextPose, totalTime, nextNodeDistance);
-                currentNode.neighbors_.push_back(nextNode);
-                nextNode.prev_ = &currentNode;
-                nodeHeap.push_back(nextNode);
-                nodeList.push_back(nextNode);
-                push_heap(nodeHeap.begin(), nodeHeap.end());
-                freeNodes = true;
+                    // Add node to heap if there aren't any collisions
+                    float nextNodeDistance = 1;//getPoseDistance(potentialNextPose) - getEgoPoseDistance(potentialNextPose) / 2 + noise();
+                    //std::cout << "NEW DISTANCE: " << nextNodeDistance << std::endl;
+
+                    // Set neighbors + previous 
+                    Node nextNode(potentialNextPose, totalTime, nextNodeDistance);
+                    currentNode.neighbors_.push_back(nextNode);
+                    nextNode.prev_ = &currentNode;
+                    nodeHeap.push_back(nextNode);
+                    nodeList.push_back(nextNode);
+                    push_heap(nodeHeap.begin(), nodeHeap.end());
+                    freeNodes = true;
+                }
             }
         }
+        
         if (!freeNodes){
             std::cout << "No free nodes" << std::endl;
         }
@@ -298,6 +359,43 @@ std::vector<Node> Vehicle::calculateNodeGraph2(std::vector<Agent> agents, std::v
         
         
     }
+    return nodeList;
+}
+
+std::vector<Node> Vehicle::randomTreeExplore(std::vector<Agent> agents, std::vector<Obstacle> obstacles){
+    
+    // Set parameters
+    int currentTreeIter = 0;
+    int maxTreeSize = 5000;
+    float dt = 0.5;
+    float minVelocity = 1; 
+    float maxVelocity = 5;
+    float velocityIncrement = 1;
+    float maxTurnAngle = M_PI / 4;
+    float minTurnAngle = M_PI / 32;
+    
+    // First iter
+    Pose currentPose = getPose();
+    std::vector<Node> nodeList;
+    Node currentNode(currentPose, 0, 0);
+    nodeList.push_back(currentNode);
+
+    while (currentTreeIter <= maxTreeSize){
+        if (currentTreeIter == maxTreeSize){
+            currentNode = generateGoalNode();
+        }else{
+            currentNode = pickRandomNode(nodeList);
+        }
+        
+        Pose newPose = pickRandomPose(currentNode.getPose(), maxTurnAngle, maxVelocity, dt);
+        Node newNode(newPose, 0, currentNode.getDistance() + distance(currentNode.getPose(), newPose));
+        Node lowestCostPrevNode = findLowestCostNeighbor(nodeList, newNode, currentNode, maxVelocity * dt);
+        newNode.prev_ = &lowestCostPrevNode;
+        nodeList.push_back(newNode);
+        if (nodeList.size() % 1000 == 0) std::cout << nodeList.size() << std::endl;
+        currentTreeIter++;
+    }
+
     return nodeList;
 }
 
