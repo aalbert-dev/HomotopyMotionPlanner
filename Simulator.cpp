@@ -7,6 +7,7 @@
 #include "Node.h"
 #include "Viz.h"
 #include "Trajectory.h"
+#include "Metrics.h"
 
 void updateKinematics(Vehicle& car, float dt, float steering_angle, float throttle){
     
@@ -50,18 +51,19 @@ int main(int argc, char **argv){
     // Define bounding boxes for agents and obstacles
     Agent agent1(Pose(0, 0, 0), 0.0, 2.0, 4.0, "Agent 0");
     Vehicle ego_vehicle(Pose(-10, 0, 0), 2.0, 2.0, 4.0, "Ego", 10.0, 0.0);
-    Obstacle ob1(Pose(1, 5, 0), 8, 8, "Obstacle 1");
-    Obstacle ob2(Pose(1, -10, 0), 8, 8, "Obstacle 2");
+    // Obstacle ob1(Pose(1, 5, 0), 8, 8, "Obstacle 1");
+    // Obstacle ob2(Pose(1, -10, 0), 8, 8, "Obstacle 2");
 
-    // Add objects to enviornment
-    std::vector<Obstacle> obstacles = {};
+    // // Add objects to enviornment
+    // std::vector<Obstacle> obstacles = {};
     std::vector<Agent> agents = {agent1};
 
-    // Plot enviornment 
-    Trajectory trajResult = ego_vehicle.calculateTrajectory(agents, obstacles);
-    std::vector<Node> nodeGraph = ego_vehicle.randomTreeExplore(agents, obstacles);
-    plot_env(agents, obstacles, ego_vehicle, nodeGraph, trajResult);
-
+    // // Plot enviornment 
+    // Trajectory trajResult = ego_vehicle.calculateTrajectory(agents, obstacles);
+    // std::vector<Node> nodeGraph = ego_vehicle.randomTreeExplore(agents, obstacles);
+    // plot_env(agents, obstacles, ego_vehicle, nodeGraph, trajResult);
+    Metrics m (agents);
+    double result = m.timeToCollision(agent1, ego_vehicle);
 
     return 0;
 }
