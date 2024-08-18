@@ -181,27 +181,24 @@ void plot_pose(Pose p){
 }
 
 void plot_node(Node node){
-    if (node.getDistance() > 0){
-        Node* prev = node.prev_;
+    if (node.has_prev_){
         float x1 = node.getPose().getX();
         float y1 = node.getPose().getY();
-        float x2 = prev->getPose().getX();
-        float y2 = prev->getPose().getY();
+        // float x2 = node.getPrev()->getPose().getX();
+        // float y2 = node.getPrev()->getPose().getY();
+        float x2 = node.prev_x_;
+        float y2 = node.prev_y_;
         std::vector<float> points_x = {x1, x2};
         std::vector<float> points_y = {y1, y2};
         plt::plot(points_x, points_y);
+        //std::cout << "plotting" << std::endl;
     }
 }
 
 void plot_nodes(std::vector<Node> nodes){
-    std::vector<float> node_x;
-    std::vector<float> node_y;
     for (int i = 0; i < nodes.size(); i++){
-        node_x.push_back(nodes[i].getPose().getX());
-        node_y.push_back(nodes[i].getPose().getY());
-        //plot_node(nodes[i]);
+        plot_node(nodes[i]);
     }
-    plt::scatter(node_x, node_y, 5.0);
 }
 
 void plot_env(std::vector<Agent> agents, std::vector<Obstacle> obstacles, Vehicle vehicle, std::vector<Node> nodeGraph, Trajectory trajResult){
@@ -214,5 +211,11 @@ void plot_env(std::vector<Agent> agents, std::vector<Obstacle> obstacles, Vehicl
     plot_obstacles(obstacles);
     //plot_traj(trajResult);
     plot_nodes(nodeGraph);
+    // for (int i = 0; i < nodeGraph.size(); i++){
+    //     double x2 = nodeGraph[i].getPrev()->getPose().getX();
+    //     double y2 = nodeGraph[i].getPrev()->getPose().getY();
+    //     std::cout << x2 << " " << y2 << std::endl;
+    // }
+    
     plt::save("./basic.png");
 }

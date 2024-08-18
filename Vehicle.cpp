@@ -6,8 +6,12 @@
 #include <math.h>
 #include <bits/stdc++.h>
 #include "Viz.h"
+#include <cstdlib>
+#include <ctime>
+
 
 static std::default_random_engine rng;
+
 
 Vehicle::Vehicle(Pose pose, float velocity, float width, float length, std::string name, float goal_x, float goal_y)
       : Agent(pose, velocity, width, length, name), goal_x_(goal_x), goal_y_(goal_y) {}
@@ -337,7 +341,7 @@ std::vector<Node> Vehicle::calculateNodeGraph2(std::vector<Agent> agents, std::v
                     // Set neighbors + previous 
                     Node nextNode(potentialNextPose, totalTime, nextNodeDistance);
                     currentNode.neighbors_.push_back(nextNode);
-                    nextNode.prev_ = &currentNode;
+                    nextNode.setPrev(currentNode);
                     nodeHeap.push_back(nextNode);
                     nodeList.push_back(nextNode);
                     push_heap(nodeHeap.begin(), nodeHeap.end());
@@ -362,52 +366,193 @@ std::vector<Node> Vehicle::calculateNodeGraph2(std::vector<Agent> agents, std::v
     return nodeList;
 }
 
+double generate_random_double(double min, double max) {
+    double random_double = static_cast<double>(rand()) / RAND_MAX;
+    //std::cout << random_double << std::endl;
+    double range = max - min;
+    return min + (random_double * range);
+}
+
+
+Node genRandomNode(double xmin, double ymin, double xmax, double ymax){
+    double x = generate_random_double(xmin, xmax);
+    double y = generate_random_double(ymin, ymax);
+    return Node(Pose(x, y, 0), 0, 0);
+}
+
+bool checkCollision(Node currentNode, Agent a){
+    float node_x = currentNode.getPose().getX();
+    float node_y = currentNode.getPose().getY();
+    float agent_x = a.getPose().getX();
+    float agent_y = a.getPose().getY();
+    if (node_x < agent_x + a.getWidth() / 2 
+    && node_x > agent_x - a.getWidth() / 2
+    && node_y < agent_y + a.getLength() / 2
+    && node_y > agent_y - a.getLength() / 2){
+        return true;
+    }else{
+        return false;
+    }
+}
+
+bool checkCollision(Node currentNode, Obstacle o){
+    float node_x = currentNode.getPose().getX();
+    float node_y = currentNode.getPose().getY();
+    float ob_x = o.getPose().getX();
+    float ob_y = o.getPose().getY();
+    if (node_x < ob_x + o.getWidth() / 2 
+    && node_x > ob_x - o.getWidth() / 2
+    && node_y < ob_y + o.getLength() / 2
+    && node_y > ob_y - o.getLength() / 2){
+        return true;
+    }else{
+        return false;
+    }
+}
+
+bool checkCollisions(Node currentNode, std::vector<Agent> agents, std::vector<Obstacle> obstacles){
+    for (int i = 0; i < agents.size(); i++){
+        if (checkCollision(currentNode, agents[i])){
+            return true;
+        }
+    }
+    for (int i = 0; i < obstacles.size(); i++){
+        if (checkCollision(currentNode, obstacles[i])){
+            return true;
+        }
+    }
+    return false;
+}
+
+int findLowestDistanceNodeIndex(Node currentNode, std::vector<Node> nodeList){
+    float minDist = 999999;
+    int minDistNodeIndex = -1;
+    for (int i = 0; i < nodeList.size(); i++){
+        float currentDistance = distance(currentNode, nodeList[i]);
+        if (currentDistance < minDist){
+            minDist = currentDistance;
+            minDistNodeIndex = i;
+        }
+    }
+    return minDistNodeIndex;
+}
+
+
 std::vector<Node> Vehicle::randomTreeExplore(std::vector<Agent> agents, std::vector<Obstacle> obstacles){
     
     // Set parameters
     int currentTreeIter = 0;
     int maxTreeSize = 5000;
-    float dt = 0.5;
-    float minVelocity = 1; 
-    float maxVelocity = 5;
-    float velocityIncrement = 1;
-    float maxTurnAngle = M_PI / 4;
-    float minTurnAngle = M_PI / 32;
-    
-    // First iter
+
+    // Setup
     Pose currentPose = getPose();
     std::vector<Node> nodeList;
+    // Node a(Pose(5, 5, 0), 0, 0);
+    // Node b(Pose(2, 2, 0), 0, 0);
+    // Node c(Pose(7, 1, 0), 0, 0);
+    // Node d(Pose(1, 7, 0), 0, 0);
+    // a.setPrev(b);
+    // b.setPrev(c);
+    // c.setPrev(d);
+    // a.has_prev_ = true;
+    // b.has_prev_ = true;
+    // c.has_prev_ = true;
+    // nodeList.push_back(a);
+    // nodeList.push_back(b);
+    // nodeList.push_back(c);
+    // nodeList.push_back(d);
     Node currentNode(currentPose, 0, 0);
     nodeList.push_back(currentNode);
 
-    while (currentTreeIter <= maxTreeSize){
-        if (currentTreeIter == maxTreeSize){
-            currentNode = generateGoalNode();
+    for (int treeIter = 0; treeIter < maxTreeSize; treeIter++){
+        Node randomNode = genRandomNode(-15.0, -15.0, 15.0, 15.0);
+        if (!checkCollisions(randomNode, agents, obstacles)){
+            int closestNodeIndex = findLowestDistanceNodeIndex(randomNode, nodeList);
+            randomNode.setPrev(nodeList[closestNodeIndex]);
+            randomNode.has_prev_ = true;
+            randomNode.prev_x_ = nodeList[closestNodeIndex].getPose().getX();
+            randomNode.prev_y_ = nodeList[closestNodeIndex].getPose().getY();
+            nodeList.push_back(randomNode);
         }else{
-            currentNode = pickRandomNode(nodeList);
+            treeIter--;
         }
-        
-        Pose newPose = pickRandomPose(currentNode.getPose(), maxTurnAngle, maxVelocity, dt);
-        Node newNode(newPose, 0, currentNode.getDistance() + distance(currentNode.getPose(), newPose));
-        Node lowestCostPrevNode = findLowestCostNeighbor(nodeList, newNode, currentNode, maxVelocity * dt);
-        newNode.prev_ = &lowestCostPrevNode;
-        nodeList.push_back(newNode);
-        if (nodeList.size() % 1000 == 0) std::cout << nodeList.size() << std::endl;
-        currentTreeIter++;
+
+
+        // double x1 = randomNode.getPrev()->getPose().getX();
+        // double y1 = randomNode.getPrev()->getPose().getY();
+        // std::cout << x1 << " " << y1 << std::endl;
     }
 
+    // for (int i = 0; i < nodeList.size(); i++){
+    //     double x2 = nodeList[i].getPrev()->getPose().getX();
+    //     double y2 = nodeList[i].getPrev()->getPose().getY();
+    //     std::cout << x2 << " " << y2 << std::endl;
+    // }
+    //expect: 
+    // 2, 2
+    // 7, 1
+    // 1, 7
+    //setNodeGraph(nodeList);
     return nodeList;
 }
 
+
+// std::vector<Node> Vehicle::randomTreeExplore(std::vector<Agent> agents, std::vector<Obstacle> obstacles){
+    
+//     // Set parameters
+//     int currentTreeIter = 0;
+//     int maxTreeSize = 5000;
+//     float dt = 0.5;
+//     float minVelocity = 1; 
+//     float maxVelocity = 5;
+//     float velocityIncrement = 1;
+//     float maxTurnAngle = M_PI / 4;
+//     float minTurnAngle = M_PI / 32;
+    
+//     // First iter
+//     Pose currentPose = getPose();
+//     std::vector<Node> nodeList;
+//     Node currentNode(currentPose, 0, 0);
+//     nodeList.push_back(currentNode);
+
+//     while (currentTreeIter <= maxTreeSize){
+//         if (currentTreeIter == maxTreeSize){
+//             currentNode = generateGoalNode();
+//         }else{
+//             currentNode = pickRandomNode(nodeList);
+//         }
+        
+//         Pose newPose = pickRandomPose(currentNode.getPose(), maxTurnAngle, maxVelocity, dt);
+//         Node newNode(newPose, 0, currentNode.getDistance() + distance(currentNode.getPose(), newPose));
+//         Node lowestCostPrevNode = findLowestCostNeighbor(nodeList, newNode, currentNode, maxVelocity * dt);
+//         newNode.prev_ = &lowestCostPrevNode;
+//         nodeList.push_back(newNode);
+//         if (nodeList.size() % 1000 == 0) std::cout << nodeList.size() << std::endl;
+//         currentTreeIter++;
+//     }
+
+//     return nodeList;
+// }
+
+// Trajectory Vehicle::calculateTrajectory(std::vector<Agent> agents, std::vector<Obstacle> obstacles){
+
+//     return Trajectory();
+// }
+
 Trajectory Vehicle::calculateTrajectory(std::vector<Agent> agents, std::vector<Obstacle> obstacles){
 
-    // Node currentNode = calculateNodeGraph(agents, obstacles);
-    // std::vector<Pose> poseList = {currentNode.getPose()};
-    // Node* newNode = currentNode.prev_;
-    // while (newNode->prev_){
-    //     poseList.push_back(newNode->getPose());
-    //     newNode = newNode->prev_;
-    //     std::cout << "Next node in traj" << std::endl;
-    // }
-    return Trajectory(); 
+    Pose currentPose = getPose();
+    float currentHeading = currentPose.getHeading();
+    int numPoints = 50;
+    float dt = 0.5;
+    float velocity = 2.0;
+    std::vector<Pose> poseList;
+    for (int i = 0; i < numPoints; i++){
+        float currentTime = dt * i;
+        float newX = currentPose.getX() + cos(currentHeading) * currentTime * velocity;
+        float newY = currentPose.getY() + sin(currentHeading) * currentTime * velocity;
+        Pose newPose(newX, newY, currentHeading);
+        poseList.push_back(newPose);
+    }
+    return Trajectory(poseList); 
 }

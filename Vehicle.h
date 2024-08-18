@@ -22,9 +22,12 @@ class Vehicle : public Agent{
         float getGoalY() const { return goal_y_; }
         bool isGoal(Pose currentPose);
         Node generateGoalNode();
+        void setNodeGraph(std::vector<Node> nodeGraph) { nodeGraph_ = nodeGraph; }
+        std::vector<Node> getNodeGraph() const { return nodeGraph_; }
 
 
     private:
         float goal_x_;
         float goal_y_;
+        std::vector<Node> nodeGraph_;
 };
